@@ -53,14 +53,17 @@ def chat():
             
             if not is_safe:
                 print("BLOCKING REQUEST: Malicious intent detected.")
-                tracer.current_span().set_tag("error", True)
-                tracer.current_span().set_tag("security.status", "blocked")
-                
+                span = tracer.current_span()
+                span.error = 1
+                span.set_tag("security.status", "blocked")
+                span.set_tag("output.verdict", "UNSAFE")
+
                 return jsonify({
                     "error": "Security Alert: Your prompt was flagged as malicious.",
                     "status": "BLOCKED"
                 }), 403
-                
+
+                            
             with tracer.trace("guardian.chat_response") as chat_span:
                 chat_response = model.generate_content(user_prompt)
                 chat_span.set_tag("security.status", "allowed")
@@ -72,7 +75,8 @@ def chat():
 
         except Exception as e:
             print(f"Error: {e}")
-            tracer.current_span().set_tag("error", True)
+            span = tracer.current_span()
+            span.error = 1
             return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
