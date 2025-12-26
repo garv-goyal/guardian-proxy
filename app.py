@@ -41,7 +41,7 @@ def check_safety(user_prompt):
 
 @app.route('/chat', methods=['POST'])
 def chat():
-    with tracer.trace("guardian.request", service="guardian-service"):
+    with tracer.trace("guardian.request", service="guardian-service") as request_span:
         try:
             data = request.json
             user_prompt = data.get('prompt')
@@ -53,17 +53,15 @@ def chat():
             
             if not is_safe:
                 print("BLOCKING REQUEST: Malicious intent detected.")
-                span = tracer.current_span()
-                span.error = 1
-                span.set_tag("security.status", "blocked")
-                span.set_tag("output.verdict", "UNSAFE")
-
+                request_span.error = 1
+                request_span.set_tag("security.status", "blocked")
+                request_span.set_tag("output.verdict", "UNSAFE")
+                
                 return jsonify({
                     "error": "Security Alert: Your prompt was flagged as malicious.",
                     "status": "BLOCKED"
                 }), 403
-
-                            
+                
             with tracer.trace("guardian.chat_response") as chat_span:
                 chat_response = model.generate_content(user_prompt)
                 chat_span.set_tag("security.status", "allowed")
@@ -75,8 +73,7 @@ def chat():
 
         except Exception as e:
             print(f"Error: {e}")
-            span = tracer.current_span()
-            span.error = 1
+            tracer.current_span().set_tag("error", True)
             return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
