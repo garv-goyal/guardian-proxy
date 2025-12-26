@@ -21,7 +21,8 @@ if prompt := st.chat_input("Enter a prompt (try a jailbreak!):"):
 
     with st.spinner("Guardian is analyzing..."):
         try:
-            response = requests.post("http://localhost:8080/chat", json={"prompt": prompt})
+            backend_url = "http://127.0.0.1:5000/chat"
+            response = requests.post(backend_url, json={"prompt": prompt}, timeout=10)
             
             if response.status_code == 200:
                 answer = response.json().get("response")
